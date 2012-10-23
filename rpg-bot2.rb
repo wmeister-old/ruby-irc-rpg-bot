@@ -23,7 +23,7 @@ end
 
 class Imp < Character
   def initialize(lvl=1)
-    super(lvl, 5, 3, 3)
+    super(lvl, 5, 3, 4)
   end
 
   def to_s
@@ -33,7 +33,7 @@ end
 
 class Fighter < Character
   def initialize(lvl=1)
-    super(lvl, 10, 5, 3)
+    super(lvl, 10, 5, 7)
   end
 
   def to_s
@@ -63,8 +63,28 @@ def random_initiative
 end
 
 def do_monsters_turn(m)
-  m.channel.msg "It's the monsters turn."
-  next_turn(m)
+  for monster in $monsters
+    target = rand $party.size - 1
+    nick = $party[target][:nick]
+
+    if (dmg = monster.attack) != :miss
+      m.channel.msg "The #{monster} hits #{nick} for #{dmg} damage."
+      $party[target][:char].hp = $party[target][:char].hp - dmg
+      if $party[target][:char].hp < 1
+        m.channel.msg "#{nick} perishes."
+        $party[target][:char].dead? = true
+      end
+    else
+      m.channel.msg "The #{monster} misses #{nick}."
+    end    
+  end
+
+  if $party.filter{|e| e[:char].dead?}.count == $party.count
+    m.channel.msg "Your party has perished."
+    end_game
+  else
+    next_turn(m)
+  end
 end
 
 def next_turn(m)
@@ -74,7 +94,11 @@ def next_turn(m)
   if $initiative[$turn] == :monsters
     do_monsters_turn(m)
   else
-    m.channel.msg $party[$initiative[$turn]][:nick] + ": It's your turn!"
+    if $party[$initiative[$turn]][:char].dead?
+      next_turn(m)
+    else
+      m.channel.msg $party[$initiative[$turn]][:nick] + ": It's your turn!"
+    end
   end
 end
 
